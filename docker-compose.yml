@@ -1,0 +1,48 @@
+version: '3.8'
+
+volumes:
+  gitea:
+
+networks:
+  traefik:
+    external: true
+
+services:
+  gitea:
+    image: ${IMAGE:-gitea/gitea}:${VERSION:-latest}
+    container_name: ${NAME:-gitea}
+    environment:
+      GITEA__database__DB_TYPE: ${DB_TYPE:-mysql}
+      GITEA__database__HOST: ${DB_HOST:-host.docker.internal}
+      GITEA__database__NAME: ${DB_NAME:-gitea}
+      GITEA__database__PASSWD: ${DB_PASSWD}
+      GITEA__database__USER: ${DB_USER:-gitea}
+      GITEA__security__INSTALL_LOCK: ${INSTALL_LOCK:-true}
+      GITEA__security__REVERSE_PROXY_LIMIT: ${REVERSE_PROXY_LIMIT:-1}
+      GITEA__security__REVERSE_PROXY_TRUSTED_PROXIES: ${PROXY_TRUSTED_PROXIES:-172.16.0.0/12}
+      GITEA__server__DOMAIN: ${DOMAIN:-git.local.krislamo.org}
+      GITEA__server__ROOT_URL: https://${DOMAIN:-git.local.krislamo.org}
+      GITEA__server__SSH_DOMAIN: ${DOMAIN:-git.local.krislamo.org}
+      GITEA__service__DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-false}
+      GITEA__log__MODE: ${LOG_MODE:-file}
+      USER_GID: ${USER_GID:-1000}
+      USER_UID: ${USER_UID:-1000}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    labels:
+      - "traefik.http.routers.${ROUTER:-gitea}.rule=Host(`${DOMAIN:-git.local.krislamo.org}`)"
+      - "traefik.http.routers.${ROUTER:-gitea}.entrypoints=${ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.${ROUTER:-gitea}.tls=${ENABLE_TLS:-true}"
+      - "traefik.http.services.${ROUTER:-gitea}.loadbalancer.server.port=${CONTAINER_PORT:-3000}"
+      - "traefik.docker.network=${NETWORK:-traefik}"
+      - "traefik.enable=${TRAEFIK_ENABLE:-true}"
+    networks:
+      - ${NETWORK-traefik}
+    ports:
+      - ${SSH_PORT:-127.0.0.1:222}:22
+    volumes:
+      - gitea:/data:rw
+      - /home/git/.ssh:/data/git/.ssh:rw
+      - /var/log/gitea:/data/gitea/log:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
